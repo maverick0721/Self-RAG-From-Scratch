@@ -72,3 +72,24 @@ def create_model(state):
     print("---CREATE GPT MODEL---")
     state['model'] = ChatOpenAI(model="gpt-4o-mini", temperature=0)
     return state
+
+# FUNCTION TO BUILD VECTOR STORE
+def build_vector_store(state):
+    print("---BUILD VECTOR STORE---")
+    docs = [WebBaseLoader(url).load() for url in KNOWLEDGE_BASE_URLS]
+    docs_list = [item for sublist in docs for item in sublist]
+
+    text_splitter = RecursiveCharacterTextSplitter.from_tiktoken_encoder(
+        chunk_size=250, chunk_overlap=0
+    )
+    doc_splits = text_splitter.split_documents(docs_list)
+
+    # Add to vectorDB
+    vector_store = Chroma.from_documents(
+        documents=doc_splits,
+        collection_name="rag-chroma",
+        embedding=OpenAIEmbeddings(),
+    )
+    state['vector_store'] = vector_store.as_retriever()
+
+    return state
