@@ -10,3 +10,4 @@ pydantic
 langchain-text-splitters
 beautifulsoup4
 lxml
+python-dotenv
