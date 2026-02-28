@@ -1,20 +1,24 @@
-from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import WebBaseLoader
 from langchain_community.vectorstores import Chroma
 from langchain_openai import OpenAIEmbeddings
 from langchain_core.prompts import ChatPromptTemplate
 from pydantic import BaseModel, Field
 from langchain_openai import ChatOpenAI
-from langchain import hub
+from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 
+import os
 from dotenv import load_dotenv
+load_dotenv()
+print(os.getenv("OPENAI_API_KEY"))
+
 from typing import List
 from typing_extensions import TypedDict
 
 from langgraph.graph import END, StateGraph, START
 
-from prompts import DOCUMENT_GRADER_PROMPT, HALLUCINATION_GRADER_PROMPT, ANSWER_GRADER_PROMPT
+from Prompts import DOCUMENT_GRADER_PROMPT, HALLUCINATION_GRADER_PROMPT, ANSWER_GRADER_PROMPT
 
 KNOWLEDGE_BASE_URLS = [
     "https://www.linkedin.com/pulse/rag-sjoerd-van-den-heuvel-phd-wvg4e/?trackingId=fTTKyVWmSKSUi46QA%2BAYNQ%3D%3D&trk=article-ssr-frontend-pulse_little-text-block",
@@ -109,8 +113,9 @@ def get_relevant_documents(state):
     question = state["question"]
 
     # Retrieval
-    vector_store = state["vector_store"]
-    documents = vector_store.get_relevant_documents(question)
+    # vector_store is already a retriever
+    retriever = state["vector_store"]  # no as_retriever() needed
+    documents = retriever._get_relevant_documents(question, run_manager=None)  # LangChain 1.2.10 official
     state["documents"] = documents
 
     return state
@@ -197,9 +202,19 @@ def generate_answer(state):
         state (dict): New key added to state, generation, that contains LLM generation
     """
     print("---GENERATE---")
+
+    # This is the EXACT text of rlm/rag-prompt
+    template = """You are an assistant for question-answering tasks. 
+    Use the following pieces of retrieved context to answer the question. 
+    If you don't know the answer, just say that you don't know. 
+    Use three sentences maximum and keep the answer concise.
+
+    Question: {question} 
+    Context: {context} 
+    Answer:"""
     question = state["question"]
     documents = state["documents"]
-    prompt = hub.pull("rlm/rag-prompt")
+    prompt = ChatPromptTemplate.from_template(template)
 
     # RAG generation
     rag_chain = prompt | state['model'] | StrOutputParser()
