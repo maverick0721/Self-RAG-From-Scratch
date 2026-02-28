@@ -247,3 +247,43 @@ def check_for_hallucination(state):
         state['hallucinated'] = True
     
     return state
+
+
+# FUNCTION TO GRADE THE ANSWER
+def grade_answer(state):
+    """
+    Determines whether the LLM generated relevant answer.
+
+    Args:
+        state (dict): The current graph state
+
+    Returns:
+        str: Decision for next node to call depending on the answer grader check
+    """
+
+    print("---CHECK GENERATED ANSWER RELEVANCE---")
+    question = state["question"]
+    generation = state["generation"]
+
+    structured_llm_grader = state['model'].with_structured_output(GradeAnswer)
+    answer_prompt = ChatPromptTemplate.from_messages(
+        [
+            ("system", ANSWER_GRADER_PROMPT),
+            ("human", "User question: \n\n {question} \n\n LLM generation: {generation}"),
+        ]
+    )
+    answer_grader = answer_prompt | structured_llm_grader
+    score = answer_grader.invoke(
+        {"question": question, "generation": generation}
+    )
+    grade = score.binary_score
+
+    # Check generated answer relevance
+    if grade == "yes":
+        print("---DECISION: GENERATION ADDRESSES QUESTION---")
+        state['valid_answer'] = True
+    else:
+        print("---DECISION: GENERATION DOES NOT ADDRESS QUESTION")
+        state['valid_answer'] = False
+    
+    return state
