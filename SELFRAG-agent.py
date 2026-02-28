@@ -114,3 +114,45 @@ def get_relevant_documents(state):
     state["documents"] = documents
 
     return state
+
+# FUNCTION TO GRADE DOCUMENTS
+def grade_documents(state):
+    """
+    Determines whether the retrieved documents are relevant to the question.
+
+    Args:
+        state (dict): The current graph state
+
+    Returns:
+        state (dict): Updates documents key with only filtered relevant documents
+    """
+
+    print("---CHECK DOCUMENT RELEVANCE TO QUESTION---")
+    question = state["question"]
+    documents = state["documents"]
+
+    structured_llm_grader = state["model"].with_structured_output(GradeDocuments)
+    grade_prompt = ChatPromptTemplate.from_messages(
+        [
+            ("system", DOCUMENT_GRADER_PROMPT),
+            ("human", "Retrieved document: \n\n {document} \n\n User question: {question}"),
+        ]
+    )
+    retrieval_grader = grade_prompt | structured_llm_grader
+
+    # SCORE EACH DOC
+    filtered_docs = []
+    for d in documents:
+        score = retrieval_grader.invoke(
+            {"question": question, "document": d.page_content}
+        )
+        grade = score.binary_score
+        if grade == "yes":
+            print("---GRADE: DOCUMENT RELEVANT---")
+            filtered_docs.append(d)
+        else:
+            print("---GRADE: DOCUMENT NOT RELEVANT---")
+            continue
+    
+    state['documents'] = filtered_docs
+    return state
