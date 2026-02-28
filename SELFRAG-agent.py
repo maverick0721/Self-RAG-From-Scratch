@@ -329,7 +329,7 @@ graph = build_graph()
 
 # INVOKE GRAPH
 response = graph.invoke({
-    "question": "What is a Disjoint Set data structure?"
+    "question": "What is a RAG & how does it work?"
 })
 
 # PRINT FINAL RESPONSE
