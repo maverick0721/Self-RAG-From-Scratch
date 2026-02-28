@@ -331,3 +331,16 @@ graph = build_graph()
 response = graph.invoke({
     "question": "What is a Disjoint Set data structure?"
 })
+
+# PRINT FINAL RESPONSE
+print("\n\n FINAL RESPONSE =>")
+
+if 'hallucinated' in response.keys() and response['hallucinated']:
+    print("Model Hallucinated, generation is not grounded in documents. \n")
+
+if 'valid_answer' in response.keys() and not response['valid_answer']:
+    print("Answer is not valid for the question. \n")
+
+if 'generation' in response.keys():
+    print("Generated Answer: \n")
+    print(response['generation'])
