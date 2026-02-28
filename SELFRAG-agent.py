@@ -15,3 +15,33 @@ from typing_extensions import TypedDict
 from langgraph.graph import END, StateGraph, START
 
 from prompts import DOCUMENT_GRADER_PROMPT, HALLUCINATION_GRADER_PROMPT, ANSWER_GRADER_PROMPT
+
+KNOWLEDGE_BASE_URLS = [
+    "https://www.linkedin.com/pulse/parallel-execution-nodes-langgraph-enhancing-your-graph-prateek-qqwrc/",
+    "https://www.linkedin.com/pulse/tool-calling-langchain-do-more-your-ai-agents-saurav-prateek-so20c",
+]
+
+# DEFINING TYPE OF ATTRIBUTES OF GRAPHSTATE
+class GraphState(TypedDict):
+    """
+    Represents the state of our graph.
+
+    Attributes:
+        question: question
+        generation: LLM generation
+        documents: list of documents
+        model: LLM model used for generation
+        vector_store: vector store for RAG
+        hallucinated: whether the generation is grounded in documents
+        valid_answer: whether the generation answers the question
+    """
+
+    question: str
+    generation: str
+    documents: List[str]
+    model: ChatOpenAI
+    vector_store: Chroma
+    hallucinated: bool
+    valid_answer: bool
+
+    
