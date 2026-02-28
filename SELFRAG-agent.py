@@ -17,8 +17,8 @@ from langgraph.graph import END, StateGraph, START
 from prompts import DOCUMENT_GRADER_PROMPT, HALLUCINATION_GRADER_PROMPT, ANSWER_GRADER_PROMPT
 
 KNOWLEDGE_BASE_URLS = [
-    "https://www.linkedin.com/pulse/parallel-execution-nodes-langgraph-enhancing-your-graph-prateek-qqwrc/",
-    "https://www.linkedin.com/pulse/tool-calling-langchain-do-more-your-ai-agents-saurav-prateek-so20c",
+    "https://www.linkedin.com/pulse/rag-sjoerd-van-den-heuvel-phd-wvg4e/?trackingId=fTTKyVWmSKSUi46QA%2BAYNQ%3D%3D&trk=article-ssr-frontend-pulse_little-text-block",
+    "https://www.linkedin.com/pulse/tool-calling-sjoerd-van-den-heuvel-phd-waefe",
 ]
 
 # DEFINING TYPE OF ATTRIBUTES OF GRAPHSTATE
