@@ -287,3 +287,47 @@ def grade_answer(state):
         state['valid_answer'] = False
     
     return state
+
+
+# FUNCTION TO BUILD THE GRAPH
+def build_graph():
+    workflow = StateGraph(GraphState)
+
+    # Define the nodes
+    workflow.add_node("create_model", create_model)
+    workflow.add_node("build_vector_store", build_vector_store)
+    workflow.add_node("get_relevant_documents", get_relevant_documents)
+    workflow.add_node("grade_documents", grade_documents)
+    workflow.add_node("generate_answer", generate_answer)
+    workflow.add_node("check_for_hallucination", check_for_hallucination)
+    workflow.add_node("grade_answer", grade_answer)
+
+    # Build graph
+    workflow.add_edge(START, "create_model")
+    workflow.add_edge("create_model", "build_vector_store")
+    workflow.add_edge("build_vector_store", "get_relevant_documents")
+    workflow.add_edge("get_relevant_documents", "grade_documents")
+    workflow.add_conditional_edges(
+        "grade_documents",
+        decide_to_generate,
+        {
+            "continue": "generate_answer",
+            "end": END,
+        },
+    )
+    workflow.add_edge("generate_answer", "check_for_hallucination")
+    workflow.add_edge("check_for_hallucination", "grade_answer")
+
+    # Compile
+    return workflow.compile()
+
+# LOAD ENVIRONMENT VARIABLES
+load_dotenv()
+
+# BUILD GRAPH
+graph = build_graph()
+
+# INVOKE GRAPH
+response = graph.invoke({
+    "question": "What is a Disjoint Set data structure?"
+})
