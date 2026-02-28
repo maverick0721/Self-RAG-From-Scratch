@@ -67,3 +67,8 @@ class GradeAnswer(BaseModel):
     binary_score: str = Field(
         description="Answer addresses the question, 'yes' or 'no'"
     )   
+
+def create_model(state):
+    print("---CREATE GPT MODEL---")
+    state['model'] = ChatOpenAI(model="gpt-4o-mini", temperature=0)
+    return state
