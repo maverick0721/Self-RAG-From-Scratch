@@ -93,3 +93,24 @@ def build_vector_store(state):
     state['vector_store'] = vector_store.as_retriever()
 
     return state
+
+# FUNCTION TO RETRIEVE RELEVANT DOCUMENTS
+def get_relevant_documents(state):
+    """
+    Retrieve documents
+
+    Args:
+        state (dict): The current graph state
+
+    Returns:
+        state (dict): New key added to state, documents, that contains retrieved documents
+    """
+    print("---RETRIEVE RELEVANT DOCUMENTS---")
+    question = state["question"]
+
+    # Retrieval
+    vector_store = state["vector_store"]
+    documents = vector_store.get_relevant_documents(question)
+    state["documents"] = documents
+
+    return state
