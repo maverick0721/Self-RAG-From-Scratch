@@ -209,3 +209,41 @@ def generate_answer(state):
     return state
 
 
+# FUNCTION TO CHECK FOR HALLUCINATIONS
+def check_for_hallucination(state):
+    """
+    Determines whether the LLM hallucinated or not.
+
+    Args:
+        state (dict): The current graph state
+
+    Returns:
+        str: Decision for next node to call depending on the hallucination check
+    """
+
+    print("---CHECK HALLUCINATIONS---")
+    documents = state["documents"]
+    generation = state["generation"]
+
+    structured_llm_grader = state['model'].with_structured_output(GradeHallucinations)
+    hallucination_prompt = ChatPromptTemplate.from_messages(
+        [
+            ("system", HALLUCINATION_GRADER_PROMPT),
+            ("human", "Set of facts: \n\n {documents} \n\n LLM generation: {generation}"),
+        ]
+    )
+    hallucination_grader = hallucination_prompt | structured_llm_grader
+    score = hallucination_grader.invoke(
+        {"documents": documents, "generation": generation}
+    )
+    grade = score.binary_score
+
+    # Check hallucination
+    if grade == "yes":
+        print("---DECISION: [NO HALLUCINATIONS] GENERATION IS GROUNDED IN DOCUMENTS---")
+        state['hallucinated'] = False
+    else:
+        print("---DECISION: [MODEL HALLUCINATED] GENERATION IS NOT GROUNDED IN DOCUMENTS")
+        state['hallucinated'] = True
+    
+    return state
