@@ -184,3 +184,28 @@ def decide_to_generate(state):
         # We have relevant documents, so generate answer
         print("---DECISION: GENERATE---")
         return "continue"
+
+# FUNCTION TO GENERATE ANSWER
+def generate_answer(state):
+    """
+    Generate answer
+
+    Args:
+        state (dict): The current graph state
+
+    Returns:
+        state (dict): New key added to state, generation, that contains LLM generation
+    """
+    print("---GENERATE---")
+    question = state["question"]
+    documents = state["documents"]
+    prompt = hub.pull("rlm/rag-prompt")
+
+    # RAG generation
+    rag_chain = prompt | state['model'] | StrOutputParser()
+    generation = rag_chain.invoke({"context": documents, "question": question})
+    state['generation'] = generation
+
+    return state
+
+
