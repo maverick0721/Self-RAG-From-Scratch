@@ -174,10 +174,29 @@ lxml
 
 ## 8. Usage
 
-One-command run (setup + tests + full demo):
+Unified one-command launcher:
 
 ```bash
-chmod +x run_project.sh && ./run_project.sh
+chmod +x run.sh && ./run.sh --local
+```
+
+Docker run (build + run full demo):
+
+```bash
+./run.sh --docker
+```
+
+Docker Compose run:
+
+```bash
+./run.sh --compose
+```
+
+Manual Docker build and run:
+
+```bash
+docker build -t self-rag-from-scratch:latest .
+docker run --rm --env-file .env self-rag-from-scratch:latest
 ```
 
 Direct run:
