@@ -1,3 +1,10 @@
+import os
+import time
+from dotenv import load_dotenv
+
+load_dotenv()
+os.environ.setdefault("USER_AGENT", "self-rag-from-scratch/1.0")
+
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import WebBaseLoader
 from langchain_community.vectorstores import Chroma
@@ -9,16 +16,15 @@ from pydantic import BaseModel, Field
 from langchain_openai import ChatOpenAI
 from langchain_core.output_parsers import StrOutputParser
 
-import os
-from dotenv import load_dotenv
-load_dotenv()
-
 from typing import List
 from typing_extensions import TypedDict
 
 from langgraph.graph import END, StateGraph, START
 
 from Prompts import DOCUMENT_GRADER_PROMPT, HALLUCINATION_GRADER_PROMPT, ANSWER_GRADER_PROMPT
+
+MAX_RETRIES = 3
+RETRY_DELAY_SECONDS = 2
 
 KNOWLEDGE_BASE_URLS = [
     "https://www.linkedin.com/pulse/rag-sjoerd-van-den-heuvel-phd-wvg4e/?trackingId=fTTKyVWmSKSUi46QA%2BAYNQ%3D%3D&trk=article-ssr-frontend-pulse_little-text-block",
@@ -72,18 +78,43 @@ class GradeAnswer(BaseModel):
         description="Answer addresses the question, 'yes' or 'no'"
     )   
 
+
+def retry_operation(operation_name, fn):
+    """Run an operation with basic retries for transient network/provider failures."""
+    for attempt in range(1, MAX_RETRIES + 1):
+        try:
+            return fn()
+        except Exception as exc:
+            if attempt == MAX_RETRIES:
+                raise RuntimeError(
+                    f"{operation_name} failed after {MAX_RETRIES} attempts: {exc}"
+                ) from exc
+            print(
+                f"---WARN: {operation_name} failed (attempt {attempt}/{MAX_RETRIES}): {exc}. Retrying...---"
+            )
+            time.sleep(RETRY_DELAY_SECONDS)
+
 def create_model(state):
     print("---CREATE GPT MODEL---")
     if not os.getenv("OPENAI_API_KEY"):
         raise ValueError("OPENAI_API_KEY is not set. Add it to your environment or .env file.")
-    state['model'] = ChatOpenAI(model="gpt-4o-mini", temperature=0)
+    state['model'] = ChatOpenAI(model="gpt-4o-mini", temperature=0, max_retries=2, timeout=30)
     return state
 
 # FUNCTION TO BUILD VECTOR STORE
 def build_vector_store(state):
     print("---BUILD VECTOR STORE---")
-    docs = [WebBaseLoader(url).load() for url in KNOWLEDGE_BASE_URLS]
+    docs = [
+        retry_operation(
+            f"Loading URL: {url}",
+            lambda url=url: WebBaseLoader(url).load(),
+        )
+        for url in KNOWLEDGE_BASE_URLS
+    ]
     docs_list = [item for sublist in docs for item in sublist]
+
+    if not docs_list:
+        raise ValueError("No documents were loaded from the configured knowledge base URLs.")
 
     text_splitter = RecursiveCharacterTextSplitter.from_tiktoken_encoder(
         chunk_size=250, chunk_overlap=0
@@ -91,10 +122,13 @@ def build_vector_store(state):
     doc_splits = text_splitter.split_documents(docs_list)
 
     # Add to vectorDB
-    vector_store = Chroma.from_documents(
-        documents=doc_splits,
-        collection_name="rag-chroma",
-        embedding=OpenAIEmbeddings(),
+    vector_store = retry_operation(
+        "Building vector store",
+        lambda: Chroma.from_documents(
+            documents=doc_splits,
+            collection_name="rag-chroma",
+            embedding=OpenAIEmbeddings(),
+        ),
     )
     state['vector_store'] = vector_store.as_retriever()
 
@@ -116,7 +150,10 @@ def get_relevant_documents(state):
 
     # Retrieval
     retriever = state["vector_store"]
-    documents = retriever.invoke(question)
+    documents = retry_operation(
+        "Retrieving documents",
+        lambda: retriever.invoke(question),
+    )
     state["documents"] = documents
 
     return state
@@ -149,8 +186,11 @@ def grade_documents(state):
     # SCORE EACH DOC
     filtered_docs = []
     for d in documents:
-        score = retrieval_grader.invoke(
-            {"question": question, "document": d.page_content}
+        score = retry_operation(
+            "Grading document relevance",
+            lambda d=d: retrieval_grader.invoke(
+                {"question": question, "document": d.page_content}
+            ),
         )
         grade = score.binary_score
         if grade == "yes":
@@ -219,7 +259,10 @@ def generate_answer(state):
 
     # RAG generation
     rag_chain = prompt | state['model'] | StrOutputParser()
-    generation = rag_chain.invoke({"context": documents, "question": question})
+    generation = retry_operation(
+        "Generating answer",
+        lambda: rag_chain.invoke({"context": documents, "question": question}),
+    )
     state['generation'] = generation
 
     return state
@@ -249,8 +292,11 @@ def check_for_hallucination(state):
         ]
     )
     hallucination_grader = hallucination_prompt | structured_llm_grader
-    score = hallucination_grader.invoke(
-        {"documents": documents, "generation": generation}
+    score = retry_operation(
+        "Checking hallucinations",
+        lambda: hallucination_grader.invoke(
+            {"documents": documents, "generation": generation}
+        ),
     )
     grade = score.binary_score
 
@@ -289,8 +335,11 @@ def grade_answer(state):
         ]
     )
     answer_grader = answer_prompt | structured_llm_grader
-    score = answer_grader.invoke(
-        {"question": question, "generation": generation}
+    score = retry_operation(
+        "Grading final answer",
+        lambda: answer_grader.invoke(
+            {"question": question, "generation": generation}
+        ),
     )
     grade = score.binary_score
 
@@ -336,9 +385,6 @@ def build_graph():
 
     # Compile
     return workflow.compile()
-
-# LOAD ENVIRONMENT VARIABLES
-load_dotenv()
 
 def run_self_rag(question: str = "What is a RAG & how does it work?") -> dict:
     graph = build_graph()

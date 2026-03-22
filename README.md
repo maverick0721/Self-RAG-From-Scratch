@@ -174,6 +174,14 @@ lxml
 
 ## 8. Usage
 
+One-command run (setup + tests + full demo):
+
+```bash
+chmod +x run_project.sh && ./run_project.sh
+```
+
+Direct run:
+
 ```bash
 python SELFRAG-agent.py
 ```
@@ -186,6 +194,12 @@ from importlib.machinery import SourceFileLoader
 selfrag = SourceFileLoader("selfrag", "SELFRAG-agent.py").load_module()
 response = selfrag.run_self_rag("What is RAG & how does it work?")
 print(response.get("generation", "No generation returned"))
+```
+
+Smoke tests:
+
+```bash
+python -m unittest -q
 ```
 
 The system will:
