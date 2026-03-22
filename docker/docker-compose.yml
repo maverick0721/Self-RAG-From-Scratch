@@ -1,12 +1,12 @@
 services:
   self-rag:
     build:
-      context: .
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: docker/Dockerfile
     image: self-rag-from-scratch:latest
     container_name: self-rag-from-scratch
     env_file:
-      - .env
+      - ../.env
     environment:
       - USER_AGENT=self-rag-from-scratch/1.0
     command: ["python", "SELFRAG-agent.py"]

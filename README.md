@@ -195,7 +195,7 @@ Docker Compose run:
 Manual Docker build and run:
 
 ```bash
-docker build -t self-rag-from-scratch:latest .
+docker build --ignorefile docker/.dockerignore -f docker/Dockerfile -t self-rag-from-scratch:latest .
 docker run --rm --env-file .env self-rag-from-scratch:latest
 ```
 

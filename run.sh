@@ -67,7 +67,7 @@ run_docker() {
   require_openai_key
 
   echo "[docker] Building image..."
-  if docker build -t self-rag-from-scratch:latest .; then
+  if docker build --ignorefile docker/.dockerignore -f docker/Dockerfile -t self-rag-from-scratch:latest .; then
     echo "[docker] Running container..."
     docker run --rm --env-file .env self-rag-from-scratch:latest
     return
@@ -92,7 +92,7 @@ run_compose() {
   require_openai_key
 
   echo "[compose] Starting service..."
-  docker compose up --build
+  docker compose -f docker/docker-compose.yml up --build
 }
 
 case "$MODE" in
