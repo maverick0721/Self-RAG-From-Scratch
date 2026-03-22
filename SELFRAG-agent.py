@@ -3,15 +3,15 @@ from langchain_community.document_loaders import WebBaseLoader
 from langchain_community.vectorstores import Chroma
 from langchain_openai import OpenAIEmbeddings
 from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.documents import Document
+from langchain_core.retrievers import BaseRetriever
 from pydantic import BaseModel, Field
 from langchain_openai import ChatOpenAI
-from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 
 import os
 from dotenv import load_dotenv
 load_dotenv()
-print(os.getenv("OPENAI_API_KEY"))
 
 from typing import List
 from typing_extensions import TypedDict
@@ -42,9 +42,9 @@ class GraphState(TypedDict):
 
     question: str
     generation: str
-    documents: List[str]
+    documents: List[Document]
     model: ChatOpenAI
-    vector_store: Chroma
+    vector_store: BaseRetriever
     hallucinated: bool
     valid_answer: bool
 
@@ -74,6 +74,8 @@ class GradeAnswer(BaseModel):
 
 def create_model(state):
     print("---CREATE GPT MODEL---")
+    if not os.getenv("OPENAI_API_KEY"):
+        raise ValueError("OPENAI_API_KEY is not set. Add it to your environment or .env file.")
     state['model'] = ChatOpenAI(model="gpt-4o-mini", temperature=0)
     return state
 
@@ -113,9 +115,8 @@ def get_relevant_documents(state):
     question = state["question"]
 
     # Retrieval
-    # vector_store is already a retriever
-    retriever = state["vector_store"]  # no as_retriever() needed
-    documents = retriever._get_relevant_documents(question, run_manager=None)  # LangChain 1.2.10 official
+    retriever = state["vector_store"]
+    documents = retriever.invoke(question)
     state["documents"] = documents
 
     return state
@@ -339,23 +340,25 @@ def build_graph():
 # LOAD ENVIRONMENT VARIABLES
 load_dotenv()
 
-# BUILD GRAPH
-graph = build_graph()
+def run_self_rag(question: str = "What is a RAG & how does it work?") -> dict:
+    graph = build_graph()
+    return graph.invoke({"question": question})
 
-# INVOKE GRAPH
-response = graph.invoke({
-    "question": "What is a RAG & how does it work?"
-})
 
-# PRINT FINAL RESPONSE
-print("\n\n FINAL RESPONSE =>")
+def print_response_summary(response: dict) -> None:
+    print("\n\n FINAL RESPONSE =>")
 
-if 'hallucinated' in response.keys() and response['hallucinated']:
-    print("Model Hallucinated, generation is not grounded in documents. \n")
+    if response.get('hallucinated'):
+        print("Model Hallucinated, generation is not grounded in documents.\n")
 
-if 'valid_answer' in response.keys() and not response['valid_answer']:
-    print("Answer is not valid for the question. \n")
+    if 'valid_answer' in response and not response['valid_answer']:
+        print("Answer is not valid for the question.\n")
 
-if 'generation' in response.keys():
-    print("Generated Answer: \n")
-    print(response['generation'])
+    if 'generation' in response:
+        print("Generated Answer:\n")
+        print(response['generation'])
+
+
+if __name__ == "__main__":
+    response = run_self_rag()
+    print_response_summary(response)

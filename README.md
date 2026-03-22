@@ -174,12 +174,18 @@ lxml
 
 ## 8. Usage
 
-```python
-graph = build_graph()
+```bash
+python SELFRAG-agent.py
+```
 
-response = graph.invoke({
-    "question": "What is RAG & how does it work?"
-})
+Optional programmatic usage:
+
+```python
+from importlib.machinery import SourceFileLoader
+
+selfrag = SourceFileLoader("selfrag", "SELFRAG-agent.py").load_module()
+response = selfrag.run_self_rag("What is RAG & how does it work?")
+print(response.get("generation", "No generation returned"))
 ```
 
 The system will:
