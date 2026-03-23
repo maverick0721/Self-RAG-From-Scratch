@@ -1,273 +1,223 @@
-# 🧠 Self-RAG from Scratch  
-### A Self-Reflective Retrieval-Augmented Generation System with LangGraph
+# Self-RAG from Scratch
 
-> 🧠 A self-reflective Retrieval-Augmented Generation (Self-RAG) system integrating document relevance grading, hallucination detection, and answer validation.  
-> 🔍 Implements structured LLM-based evaluators to enforce factual grounding and response quality.  
-> 📈 Demonstrates production-oriented RAG orchestration using conditional execution graphs and automated quality control.
+![Python](https://img.shields.io/badge/python-3.12-blue.svg)
+![LangGraph](https://img.shields.io/badge/orchestration-langgraph-0ea5e9)
+![Vector%20Store](https://img.shields.io/badge/vector%20db-chroma-22c55e)
+![LLM](https://img.shields.io/badge/llm-gpt--4o--mini-111827)
+![Docker](https://img.shields.io/badge/docker-ready-2496ED)
 
----
+A production-oriented, self-reflective Retrieval-Augmented Generation pipeline. Instead of stopping at retrieval and generation, it applies structured relevance grading, hallucination checks, and final answer validation before returning output.
 
-## 1. Overview
+## Problem
 
-This project implements a structured, self-correcting Retrieval-Augmented Generation (RAG) pipeline using:
+Traditional RAG systems often fail in predictable ways:
 
-- **LangGraph** (graph orchestration)
-- **Chroma** (vector store)
-- **OpenAI Embeddings**
-- **Structured LLM grading with Pydantic**
+- Retrieval noise introduces irrelevant context
+- Hallucinations appear when evidence is weak or absent
+- Answer quality is inconsistent without validation gates
+- Pipelines are hard to audit when execution is implicit
 
-Unlike naive RAG systems that simply retrieve and generate, this pipeline actively evaluates:
+## Solution
 
-- Document relevance  
-- Factual grounding (hallucination detection)  
-- Answer quality  
+This project implements a self-reflective, quality-controlled RAG workflow:
 
-The result is a more reliable and production-aligned RAG architecture.
+- Graph-based orchestration with LangGraph
+- Structured binary graders with Pydantic (`yes`/`no`)
+- Hallucination and answer-quality gates before final output
+- One-command local run, Docker run, and Compose run
+- Fallback runtime paths for restricted Docker hosts
 
----
-
-## 2. Motivation
-
-Standard RAG systems suffer from:
-
-- Retrieval noise  
-- Hallucinated outputs  
-- Irrelevant or incomplete answers  
-- No structured quality control  
-
-This project introduces a **Self-RAG** workflow where the model:
-
-1. Retrieves documents  
-2. Grades document relevance  
-3. Generates an answer  
-4. Checks hallucinations  
-5. Validates answer quality  
-
-This transforms RAG into a **self-evaluating reasoning system**.
-
----
-
-## 3. System Architecture
-
-### High-Level Execution Flow
-
-```
-START
-  ↓
-Create Model
-  ↓
-Build Vector Store
-  ↓
-Retrieve Documents
-  ↓
-Grade Documents
-  ↓ (if relevant)
-Generate Answer
-  ↓
-Hallucination Check
-  ↓
-Answer Quality Check
-  ↓
-END
-```
-
-The pipeline is implemented using **LangGraph’s `StateGraph`**, enabling:
-
-- Deterministic orchestration  
-- Conditional branching  
-- Structured state transitions  
-
----
-
-## 4. Core Components
-
-### 4.1 Vector Store Construction
-
-- Source: External knowledge base URLs  
-- Loader: `WebBaseLoader`  
-- Splitter: `RecursiveCharacterTextSplitter`  
-- Embeddings: `OpenAIEmbeddings`  
-- Vector Database: `Chroma`  
-
-Documents are chunked and embedded before being indexed.
-
----
-
-### 4.2 Structured LLM Graders (LLM-as-Judge)
-
-Three structured evaluators are implemented:
-
-#### 1️⃣ Document Relevance Grader  
-Determines if retrieved documents are useful for answering the question.
-
-#### 2️⃣ Hallucination Grader  
-Checks whether generated answers are fully grounded in retrieved documents.
-
-#### 3️⃣ Answer Quality Grader  
-Ensures the answer directly addresses the user’s query.
-
-Each grader returns strictly:
-
-```
-"yes" or "no"
-```
-
-This enables deterministic conditional routing.
-
----
-
-## 5. Conditional Execution Example
-
-```python
-workflow.add_conditional_edges(
-    "grade_documents",
-    decide_to_generate,
-    {
-        "continue": "generate_answer",
-        "end": END,
-    },
-)
-```
-
-If no relevant documents are found, generation is skipped.
-
----
-
-## 6. Technical Stack
+### Tech Stack
 
 | Component | Tool |
-|------------|------|
+| --- | --- |
 | LLM | GPT-4o-mini |
 | Orchestration | LangGraph |
 | Vector Store | Chroma |
 | Embeddings | OpenAIEmbeddings |
-| Document Loader | WebBaseLoader |
-| Chunking | RecursiveCharacterTextSplitter |
+| Loader | WebBaseLoader |
+| Splitter | RecursiveCharacterTextSplitter |
 | Structured Output | Pydantic |
 
----
+### Project Structure
 
-## 7. Installation
+```text
+SELFRAG-agent.py          # main graph pipeline
+Prompts.py                # grader prompts
+run.sh                    # unified launcher
+requirements.txt          # dependencies
+test_selfrag_smoke.py     # smoke tests
+docker/                   # docker assets
+  Dockerfile
+  docker-compose.yml
+  docker-compose.fallback.yml
+```
+
+## Architecture
+
+```mermaid
+flowchart TD
+    A([Start]) --> B[Create LLM Model]
+    B --> C[Build Vector Store]
+    C --> D[Retrieve Documents]
+    D --> E[Grade Document Relevance]
+    E -->|No relevant docs| Z([End])
+    E -->|Relevant docs found| F[Generate Answer]
+    F --> G[Hallucination Check]
+    G --> H[Answer Quality Check]
+    H --> I([Final Response])
+```
+
+### Core Pipeline Stages
+
+1. Retrieve documents from configured knowledge URLs
+2. Grade each document for relevance
+3. Generate grounded response from filtered context
+4. Grade hallucination risk
+5. Grade answer relevance to user question
+
+## Demo Command
+
+### 1) Configure environment
+
+Add your key to `.env`:
+
+```env
+OPENAI_API_KEY=your_key_here
+```
+
+### 2) Run (recommended local path)
 
 ```bash
-pip install -r requirements.txt
+chmod +x run.sh
+./run.sh --local
 ```
 
-### requirements.txt
+### Other run modes
 
-```
-langchain
-langchain-core
-langchain-community
-langchain-openai
-langgraph
-chromadb
-python-dotenv
-tiktoken
-pydantic
-langchain-text-splitters
-beautifulsoup4
-lxml
-```
-
----
-
-## 8. Usage
-
-Unified one-command launcher:
+### Local
 
 ```bash
-chmod +x run.sh && ./run.sh --local
+./run.sh --local
 ```
 
-Docker run (build + run full demo):
+What it does:
+
+- Creates `.venv` if missing
+- Installs dependencies
+- Runs smoke tests
+- Runs full Self-RAG demo
+
+### Docker
 
 ```bash
 ./run.sh --docker
 ```
 
-Docker Compose run:
+What it does:
+
+- Attempts normal Docker image build and run
+- If host blocks image builds, falls back to no-build container execution
+
+### Docker Compose
 
 ```bash
 ./run.sh --compose
 ```
 
-Manual Docker build and run:
+What it does:
 
-```bash
-docker build --ignorefile docker/.dockerignore -f docker/Dockerfile -t self-rag-from-scratch:latest .
-docker run --rm --env-file .env self-rag-from-scratch:latest
-```
+- Attempts standard compose build/run
+- If host blocks build networking/mount operations, falls back to compose no-build service
 
-Direct run:
-
-```bash
-python SELFRAG-agent.py
-```
-
-Optional programmatic usage:
+### Programmatic usage
 
 ```python
 from importlib.machinery import SourceFileLoader
 
 selfrag = SourceFileLoader("selfrag", "SELFRAG-agent.py").load_module()
-response = selfrag.run_self_rag("What is RAG & how does it work?")
+response = selfrag.run_self_rag("What is RAG and how does it work?")
 print(response.get("generation", "No generation returned"))
 ```
 
-Smoke tests:
+### Testing
 
 ```bash
 python -m unittest -q
 ```
 
-The system will:
+## Results
 
-- Retrieve documents  
-- Filter irrelevant content  
-- Generate grounded answer  
-- Check hallucination  
-- Validate answer quality  
+- End-to-end runnable locally with one command (`./run.sh --local`)
+- Docker and Compose paths supported, including automatic fallbacks on restricted hosts
+- Smoke tests included and runnable via `python -m unittest -q`
+- Deterministic control flow with explicit quality gates before final answer
 
----
+## Why this matters
 
-## 9. Key Contributions
+This project turns RAG from a simple generate pipeline into an auditable decision system. The added relevance, grounding, and quality checks reduce silent failure modes and make the architecture easier to trust, explain, and ship.
 
-- Designed a self-reflective RAG architecture  
-- Implemented structured LLM grading mechanisms  
-- Built conditional graph-based orchestration  
-- Added hallucination detection before final output  
-- Enforced answer relevance validation  
-- Demonstrated production-style AI workflow design  
+## Troubleshooting
 
----
+### Missing OpenAI key
 
-## 10. Production Implications
+Error symptoms:
 
-This architecture improves:
+- `OPENAI_API_KEY is not set`
 
-- Reliability of RAG systems  
-- Grounding consistency  
-- Explainability of pipeline steps  
-- Control over hallucination risk  
+Fix:
 
-It represents a move from naive retrieval systems toward **self-regulating LLM workflows**.
+```bash
+export OPENAI_API_KEY=your_key_here
+```
 
----
+Or add to `.env`:
 
-## 11. Conclusion
+```env
+OPENAI_API_KEY=your_key_here
+```
 
-This project demonstrates how Retrieval-Augmented Generation systems can be enhanced through structured evaluation and graph-based orchestration.
+### Docker build fails with operation not permitted
 
-By integrating document filtering, hallucination detection, and answer validation, the pipeline improves robustness and aligns more closely with production deployment standards.
+Error symptoms:
 
----
+- `unshare: operation not permitted`
+- `failed to mount ... buildkit-mount ... operation not permitted`
 
-## 12. Future Extensions
+What to expect:
 
-- Multi-hop retrieval  
-- Iterative re-query loops  
-- Confidence scoring  
-- Hybrid local + remote embeddings  
-- Tool-calling integration  
+- `./run.sh --docker` automatically falls back to a no-build container run
+- `./run.sh --compose` automatically falls back to `docker/docker-compose.fallback.yml`
+
+### Docker Compose network creation fails
+
+Error symptoms:
+
+- `failed to create network ... operation not permitted`
+
+Fix:
+
+- Use the provided fallback compose path through `./run.sh --compose` (already handled automatically)
+
+### Dependencies taking too long in Docker fallback
+
+Notes:
+
+- First fallback run installs all Python dependencies in-container and can take time
+- Subsequent runs are faster due pip cache reuse in `.pip-cache`
+
+### Verifying project health quickly
+
+```bash
+python -m unittest -q
+./run.sh --local
+```
+
+## Future Extensions
+
+- Multi-hop retrieval
+- Iterative re-query loops
+- Confidence scoring
+- Hybrid local + remote embeddings
+- Tool-calling integration
 - Multi-agent RAG workflows

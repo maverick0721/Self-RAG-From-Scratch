@@ -67,20 +67,26 @@ run_docker() {
   require_openai_key
 
   echo "[docker] Building image..."
-  if docker build --ignorefile docker/.dockerignore -f docker/Dockerfile -t self-rag-from-scratch:latest .; then
+  if docker build -f docker/Dockerfile -t self-rag-from-scratch:latest .; then
     echo "[docker] Running container..."
     docker run --rm --env-file .env self-rag-from-scratch:latest
     return
   fi
 
   echo "[docker] Image build failed on this host. Falling back to no-build container run..."
+  echo "[docker] Fallback step 1/3: pull python:3.12-slim (if needed)"
+  docker pull python:3.12-slim >/dev/null
+  echo "[docker] Fallback step 2/3: install Python dependencies in container"
+  echo "[docker] Fallback step 3/3: run Self-RAG demo"
+  mkdir -p "$PROJECT_DIR/.pip-cache"
   docker run --rm \
     --env-file .env \
     -e USER_AGENT=self-rag-from-scratch/1.0 \
     -v "$PROJECT_DIR:/app" \
+    -v "$PROJECT_DIR/.pip-cache:/root/.cache/pip" \
     -w /app \
     python:3.12-slim \
-    bash -lc "pip install -q --no-cache-dir -r requirements.txt && python SELFRAG-agent.py"
+    bash -lc "set -e; echo '[container] Installing requirements...'; pip install -r requirements.txt; echo '[container] Running Self-RAG...'; python SELFRAG-agent.py"
 }
 
 run_compose() {
@@ -92,7 +98,13 @@ run_compose() {
   require_openai_key
 
   echo "[compose] Starting service..."
-  docker compose -f docker/docker-compose.yml up --build
+  if docker compose -f docker/docker-compose.yml up --build; then
+    return
+  fi
+
+  echo "[compose] Build-based compose failed on this host. Falling back to no-build compose service..."
+  mkdir -p "$PROJECT_DIR/.pip-cache"
+  docker compose -f docker/docker-compose.fallback.yml up --abort-on-container-exit
 }
 
 case "$MODE" in

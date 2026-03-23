@@ -1,0 +1,11 @@
+# Mirror of docker/.dockerignore for Docker build context at repository root.
+.git
+.gitignore
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+*.swp
+*.swo
+.env
+.venv

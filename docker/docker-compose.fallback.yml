@@ -1,0 +1,19 @@
+services:
+  self-rag:
+    image: python:3.12-slim
+    container_name: self-rag-from-scratch-compose-fallback
+    network_mode: host
+    env_file:
+      - ../.env
+    environment:
+      - USER_AGENT=self-rag-from-scratch/1.0
+    working_dir: /app
+    volumes:
+      - ../:/app
+      - ../.pip-cache:/root/.cache/pip
+    command:
+      [
+        "bash",
+        "-lc",
+        "set -e; echo '[compose-fallback] Installing requirements...'; pip install -r requirements.txt; echo '[compose-fallback] Running Self-RAG...'; python SELFRAG-agent.py"
+      ]
